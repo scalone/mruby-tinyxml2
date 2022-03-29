@@ -42,31 +42,14 @@ static struct RClass *xml_unknown_class;
 static mrb_sym
 xml_error_to_symbol(mrb_state *mrb, XMLError error)
 {
-  switch (error) {
-  case XML_SUCCESS:                        return mrb_intern_cstr(mrb, "XML_SUCCESS");
-  case XML_NO_ATTRIBUTE:                   return mrb_intern_cstr(mrb, "XML_NO_ATTRIBUTE");
-  case XML_WRONG_ATTRIBUTE_TYPE:           return mrb_intern_cstr(mrb, "XML_WRONG_ATTRIBUTE_TYPE");
-  case XML_ERROR_FILE_NOT_FOUND:           return mrb_intern_cstr(mrb, "XML_ERROR_FILE_NOT_FOUND");
-  case XML_ERROR_FILE_COULD_NOT_BE_OPENED: return mrb_intern_cstr(mrb, "XML_ERROR_FILE_COULD_NOT_BE_OPENED");
-  case XML_ERROR_FILE_READ_ERROR:          return mrb_intern_cstr(mrb, "XML_ERROR_FILE_READ_ERROR");
-  case XML_ERROR_ELEMENT_MISMATCH:         return mrb_intern_cstr(mrb, "XML_ERROR_ELEMENT_MISMATCH");
-  case XML_ERROR_PARSING_ELEMENT:          return mrb_intern_cstr(mrb, "XML_ERROR_PARSING_ELEMENT");
-  case XML_ERROR_PARSING_ATTRIBUTE:        return mrb_intern_cstr(mrb, "XML_ERROR_PARSING_ATTRIBUTE");
-  case XML_ERROR_IDENTIFYING_TAG:          return mrb_intern_cstr(mrb, "XML_ERROR_IDENTIFYING_TAG");
-  case XML_ERROR_PARSING_TEXT:             return mrb_intern_cstr(mrb, "XML_ERROR_PARSING_TEXT");
-  case XML_ERROR_PARSING_CDATA:            return mrb_intern_cstr(mrb, "XML_ERROR_PARSING_CDATA");
-  case XML_ERROR_PARSING_COMMENT:          return mrb_intern_cstr(mrb, "XML_ERROR_PARSING_COMMENT");
-  case XML_ERROR_PARSING_DECLARATION:      return mrb_intern_cstr(mrb, "XML_ERROR_PARSING_DECLARATION");
-  case XML_ERROR_PARSING_UNKNOWN:          return mrb_intern_cstr(mrb, "XML_ERROR_PARSING_UNKNOWN");
-  case XML_ERROR_EMPTY_DOCUMENT:           return mrb_intern_cstr(mrb, "XML_ERROR_EMPTY_DOCUMENT");
-  case XML_ERROR_MISMATCHED_ELEMENT:       return mrb_intern_cstr(mrb, "XML_ERROR_MISMATCHED_ELEMENT");
-  case XML_ERROR_PARSING:                  return mrb_intern_cstr(mrb, "XML_ERROR_PARSING");
-  case XML_CAN_NOT_CONVERT_TEXT:           return mrb_intern_cstr(mrb, "XML_CAN_NOT_CONVERT_TEXT");
-  case XML_NO_TEXT_NODE:                   return mrb_intern_cstr(mrb, "XML_NO_TEXT_NODE");
-  default:
+  mrb_sym ret = 0;
+
+  if (0 <= error && XML_ERROR_COUNT > error)
+    ret = mrb_intern_cstr(mrb, XMLDocument::ErrorIDToName(error));
+  else
     mrb_raise(mrb, E_RUNTIME_ERROR, "Undefined XMLError code");
-  }
-  return 0;
+
+  return ret;
 }
 
 static mrb_value
@@ -593,6 +576,14 @@ xml_document_delete_node(mrb_state *mrb, mrb_value self)
 }
 
 static mrb_value
+xml_document_clear_error(mrb_state *mrb, mrb_value self)
+{
+  XMLDocument *doc = static_cast<XMLDocument*>(DATA_PTR(self));
+  doc->ClearError();
+  return mrb_nil_value();
+}
+
+static mrb_value
 xml_document_error(mrb_state *mrb, mrb_value self)
 {
   XMLDocument *doc = static_cast<XMLDocument*>(DATA_PTR(self));
@@ -608,17 +599,36 @@ xml_document_error_id(mrb_state *mrb, mrb_value self)
 }
 
 static mrb_value
-xml_document_get_error_str1(mrb_state *mrb, mrb_value self)
+xml_document_error_name(mrb_state *mrb, mrb_value self)
 {
   XMLDocument *doc = static_cast<XMLDocument*>(DATA_PTR(self));
-  return mrb_str_new_cstr(mrb, doc->GetErrorStr1());
+  return mrb_str_new_cstr(mrb, doc->ErrorName());
+}
+
+static mrb_value
+xml_document_error_str(mrb_state *mrb, mrb_value self)
+{
+  XMLDocument *doc = static_cast<XMLDocument*>(DATA_PTR(self));
+  return mrb_str_new_cstr(mrb, doc->ErrorStr());
+}
+
+static mrb_value
+xml_document_error_line_num(mrb_state *mrb, mrb_value self)
+{
+  XMLDocument *doc = static_cast<XMLDocument*>(DATA_PTR(self));
+  return mrb_fixnum_value(doc->ErrorLineNum());
+}
+
+static mrb_value
+xml_document_get_error_str1(mrb_state *mrb, mrb_value self)
+{
+  return xml_document_error_str(mrb, self);
 }
 
 static mrb_value
 xml_document_get_error_str2(mrb_state *mrb, mrb_value self)
 {
-  XMLDocument *doc = static_cast<XMLDocument*>(DATA_PTR(self));
-  return mrb_str_new_cstr(mrb, doc->GetErrorStr2());
+  return mrb_str_new_cstr(mrb, "");
 }
 
 static mrb_value
@@ -862,6 +872,13 @@ xml_attribute_value(mrb_state *mrb, mrb_value self)
 {
   XMLAttribute *attribute = static_cast<XMLAttribute*>(DATA_PTR(self));
   return mrb_str_new_cstr(mrb, attribute->Value());
+}
+
+static mrb_value
+xml_attribute_get_line_num(mrb_state *mrb, mrb_value self)
+{
+  XMLAttribute *attribute = static_cast<XMLAttribute*>(DATA_PTR(self));
+  return mrb_fixnum_value(attribute->GetLineNum());
 }
 
 static mrb_value
@@ -1110,8 +1127,12 @@ mrb_mruby_tinyxml2_gem_init(mrb_state* mrb)
   mrb_define_method(mrb, xml_document_class,       "new_declaration",          xml_document_new_declaration,      MRB_ARGS_OPT(1));
   mrb_define_method(mrb, xml_document_class,       "new_unknown",              xml_document_new_unknown,          MRB_ARGS_REQ(1));
   mrb_define_method(mrb, xml_document_class,       "delete_node",              xml_document_delete_node,          MRB_ARGS_REQ(1));
+  mrb_define_method(mrb, xml_document_class,       "clear_error",              xml_document_clear_error,          MRB_ARGS_NONE());
   mrb_define_method(mrb, xml_document_class,       "error",                    xml_document_error,                MRB_ARGS_NONE());
   mrb_define_method(mrb, xml_document_class,       "error_id",                 xml_document_error_id,             MRB_ARGS_NONE());
+  mrb_define_method(mrb, xml_document_class,       "error_name",               xml_document_error_name,           MRB_ARGS_NONE());
+  mrb_define_method(mrb, xml_document_class,       "error_str",                xml_document_error_str,            MRB_ARGS_NONE());
+  mrb_define_method(mrb, xml_document_class,       "error_line_num",           xml_document_error_line_num,       MRB_ARGS_NONE());
   mrb_define_method(mrb, xml_document_class,       "get_error_str1",           xml_document_get_error_str1,       MRB_ARGS_NONE());
   mrb_define_method(mrb, xml_document_class,       "get_error_str2",           xml_document_get_error_str2,       MRB_ARGS_NONE());
   mrb_define_method(mrb, xml_document_class,       "print_error",              xml_document_print_error,          MRB_ARGS_NONE());
@@ -1138,6 +1159,7 @@ mrb_mruby_tinyxml2_gem_init(mrb_state* mrb)
   mrb_define_method(mrb, xml_const_attribute_class, "initialize",              xml_attribute_initialize,          MRB_ARGS_NONE());
   mrb_define_method(mrb, xml_const_attribute_class, "name",                    xml_attribute_name,                MRB_ARGS_NONE());
   mrb_define_method(mrb, xml_const_attribute_class, "value",                   xml_attribute_value,               MRB_ARGS_NONE());
+  mrb_define_method(mrb, xml_const_attribute_class, "get_line_num",            xml_attribute_get_line_num,        MRB_ARGS_NONE());
   mrb_define_method(mrb, xml_const_attribute_class, "next",                    xml_attribute_next,                MRB_ARGS_NONE());
   mrb_define_method(mrb, xml_const_attribute_class, "int_value",               xml_attribute_int_value,           MRB_ARGS_NONE());
   mrb_define_method(mrb, xml_const_attribute_class, "unsigned_value",          xml_attribute_unsigned_value,      MRB_ARGS_NONE());
