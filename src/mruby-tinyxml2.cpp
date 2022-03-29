@@ -620,6 +620,18 @@ xml_document_error_line_num(mrb_state *mrb, mrb_value self)
 }
 
 static mrb_value
+xml_document_get_error_str1(mrb_state *mrb, mrb_value self)
+{
+  return xml_document_error_str(mrb, self);
+}
+
+static mrb_value
+xml_document_get_error_str2(mrb_state *mrb, mrb_value self)
+{
+  return mrb_str_new_cstr(mrb, "");
+}
+
+static mrb_value
 xml_document_print_error(mrb_state *mrb, mrb_value self)
 {
   XMLDocument *doc = static_cast<XMLDocument*>(DATA_PTR(self));
@@ -1121,6 +1133,8 @@ mrb_mruby_tinyxml2_gem_init(mrb_state* mrb)
   mrb_define_method(mrb, xml_document_class,       "error_name",               xml_document_error_name,           MRB_ARGS_NONE());
   mrb_define_method(mrb, xml_document_class,       "error_str",                xml_document_error_str,            MRB_ARGS_NONE());
   mrb_define_method(mrb, xml_document_class,       "error_line_num",           xml_document_error_line_num,       MRB_ARGS_NONE());
+  mrb_define_method(mrb, xml_document_class,       "get_error_str1",           xml_document_get_error_str1,       MRB_ARGS_NONE());
+  mrb_define_method(mrb, xml_document_class,       "get_error_str2",           xml_document_get_error_str2,       MRB_ARGS_NONE());
   mrb_define_method(mrb, xml_document_class,       "print_error",              xml_document_print_error,          MRB_ARGS_NONE());
   mrb_define_method(mrb, xml_document_class,       "clear",                    xml_document_clear,                MRB_ARGS_NONE());
 
